@@ -90,9 +90,23 @@ export DEBIAN_FRONTEND=noninteractive
 
 # Detect package manager
 if command -v apt-get &>/dev/null; then
-  apt-get update -qq
-  apt-get install -y curl procps bc jq > /dev/null 2>&1 || \
-    apt-get install -y curl procps bc > /dev/null 2>&1
+  # Remove broken third-party repos that can block apt-get update
+  # (e.g. Yarn GPG key expired in GitHub Codespaces / some containers)
+  for f in /etc/apt/sources.list.d/yarn.list \
+            /etc/apt/sources.list.d/github-cli.list \
+            /etc/apt/sources.list.d/nodesource.list; do
+    [ -f "$f" ] && { mv "$f" "${f}.bak" 2>/dev/null; info "Repo temporal desactivado: $(basename $f)"; }
+  done
+
+  # Update — tolerant: ignore individual repo failures, just warn
+  apt-get update -qq 2>/dev/null || \
+    apt-get update -qq -o APT::Update::Error-Mode=any 2>/dev/null || \
+    apt-get update --allow-insecure-repositories -qq 2>/dev/null || \
+    warn "apt-get update con errores parciales — continuando de todas formas"
+
+  apt-get install -y curl procps bc jq 2>/dev/null || \
+    apt-get install -y curl procps bc 2>/dev/null || \
+    apt-get install -y --fix-missing curl procps bc 2>/dev/null
   ok "curl, procps, bc instalados (apt)"
 elif command -v yum &>/dev/null; then
   yum install -y curl procps bc jq > /dev/null 2>&1 || \
