@@ -133,14 +133,18 @@ ok "Directorios creados: $INSTALL_DIR  $SCRIPTS_DIR"
 step 3 "Generando configuración del agente..."
 
 # Generate a unique stable node ID (based on hostname + machine-id or random)
+_HOSTNAME=$(hostname | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9' | cut -c1-8)
+_RANDOM=$(openssl rand -hex 4 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '-' | cut -c1-8 || date +%s%N | md5sum | cut -c1-8)
+
 if [ -f /etc/machine-id ]; then
-  NODE_ID=$(cat /etc/machine-id | cut -c1-16)
+  _MACHINE=$(cat /etc/machine-id | cut -c1-8)
 elif [ -f /proc/sys/kernel/random/boot_id ]; then
-  NODE_ID=$(cat /proc/sys/kernel/random/boot_id | tr -d '-' | cut -c1-16)
+  _MACHINE=$(cat /proc/sys/kernel/random/boot_id | tr -d '-' | cut -c1-8)
 else
-  NODE_ID=$(openssl rand -hex 8)
+  _MACHINE=$(openssl rand -hex 4)
 fi
-NODE_ID="node_${NODE_ID}"
+
+NODE_ID="node_${_HOSTNAME}_${_MACHINE}_${_RANDOM}"
 
 cat > "$CONFIG_FILE" << CONFEOF
 # ============================================================
