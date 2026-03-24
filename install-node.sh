@@ -298,9 +298,15 @@ execute_task() {
   log "INFO" "Ejecutando tarea #${task_id} | tiempo: ${time_limit}s"
   log "INFO" "Comando: $command"
 
-  # Run command from SCRIPTS_DIR, with timeout
+  # Run command from INSTALL_DIR (not SCRIPTS_DIR) so that ./scripts/xd resolves correctly.
+  # The master already prefixes the path with "scripts/" in buildCommand(), so if we cd into
+  # scripts/ the agent would look for scripts/scripts/xd — double path bug.
+  local AGENT_DIR
+  AGENT_DIR="$(dirname "$0")"
   (
-    cd "$SCRIPTS_DIR" || exit 1
+    cd "$AGENT_DIR" || exit 1
+    log "INFO" "Directorio de ejecución: $(pwd)"
+    log "INFO" "Comando final: $command"
     eval "$command"
   ) &
   CURRENT_TASK_PID=$!
@@ -324,11 +330,15 @@ execute_task() {
   CURRENT_TASK_PID=""
   CURRENT_TASK_ID=""
 
-  # exit code 0 = success, 143 (SIGTERM) / killed by timeout = still success (finished on time)
+  # exit code 0 = success
+  # exit code 143 = SIGTERM (killed by us on timeout) = success (ran its time)
+  # elapsed >= time_limit = timeout reached = success
+  # anything else = real failure
   if [ "$exit_code" -eq 0 ] || [ "$exit_code" -eq 143 ] || [ "$elapsed" -ge "$time_limit" ]; then
+    log "INFO" "Tarea #${task_id} finalizada OK (exit=${exit_code}, elapsed=${elapsed}s)"
     report_complete "$task_id" "true"
   else
-    log "WARN" "Tarea #${task_id} falló con código: $exit_code"
+    log "WARN" "Tarea #${task_id} falló (exit=${exit_code}, elapsed=${elapsed}s) — comando: $command"
     report_complete "$task_id" "false"
   fi
 }
