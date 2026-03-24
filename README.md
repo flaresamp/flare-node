@@ -365,6 +365,48 @@ docker run -d --name nodo-1 --restart unless-stopped flare-node
 
 ## Solución de problemas
 
+### ❌ Error de GPG / repositorio no firmado durante la instalación
+
+**Síntoma:**
+```
+W: GPG error: https://dl.yarnpkg.com/debian stable InRelease: The following signatures
+   couldn't be verified because the public key is not available: NO_PUBKEY 62D54FD4003F6525
+E: The repository 'https://dl.yarnpkg.com/debian stable InRelease' is not signed.
+```
+
+**Causa:** El entorno (GitHub Codespaces, algunos contenedores LXC o imágenes preconfiguradas) tiene repositorios de terceros como Yarn, GitHub CLI u otros con claves GPG vencidas o inaccesibles. Cuando `apt-get update` los encuentra, falla y bloquea la instalación.
+
+**Solución:** El installer lo maneja automáticamente desde la versión actual — desactiva temporalmente los repos problemáticos antes del update. Si aun así ves el error, puedes corregirlo manualmente antes de ejecutar el installer:
+
+```bash
+# Opción 1 — Deshabilitar repos de terceros problemáticos manualmente
+sudo mv /etc/apt/sources.list.d/yarn.list /etc/apt/sources.list.d/yarn.list.bak 2>/dev/null || true
+sudo mv /etc/apt/sources.list.d/github-cli.list /etc/apt/sources.list.d/github-cli.list.bak 2>/dev/null || true
+
+# Luego vuelve a correr el installer
+sudo bash install-node.sh
+```
+
+```bash
+# Opción 2 — Forzar update ignorando errores de repos
+sudo apt-get update --allow-insecure-repositories -qq 2>/dev/null || true
+sudo apt-get install -y curl procps bc
+
+# Luego correr el installer
+sudo bash install-node.sh
+```
+
+```bash
+# Opción 3 — Ver exactamente cuáles repos están fallando
+sudo apt-get update 2>&1 | grep -E "^E:|^W:" | sort -u
+# Para cada repo problemático:
+sudo rm /etc/apt/sources.list.d/REPO_PROBLEMÁTICO.list
+```
+
+> **Nota:** Los repos desactivados por el installer se renombran a `.bak` — no se eliminan. Puedes restaurarlos después si los necesitas: `mv /etc/apt/sources.list.d/yarn.list.bak /etc/apt/sources.list.d/yarn.list`
+
+---
+
 ### El nodo no aparece en el panel
 
 ```bash
