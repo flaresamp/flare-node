@@ -77,8 +77,9 @@
 ### 1 — Descarga y ejecuta el installer
 
 ```bash
-wget https://raw.githubusercontent.com/flaresamp/flare-node/main/install-node.sh
-sudo bash install-node.sh
+git clone https://github.com/flaresamp/flare-node.git
+cd flare-node
+bash install-node.sh
 ```
 
 O en una línea:
